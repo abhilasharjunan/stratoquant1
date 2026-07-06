@@ -11,6 +11,7 @@ import { FadeIn } from '@/components/animations';
 import { RiskOMeterInline } from '@/components/funds/RiskOMeterInline';
 import { SectorPieChart } from '@/components/funds/SectorPieChart';
 import { VolatilityChart } from '@/components/funds/VolatilityChart';
+import { SkeletonCard, SkeletonText, SkeletonChart } from '@/components/ui/skeletons';
 import { downloadCSV } from '@/lib/export';
 
 type FundCategory = 
@@ -114,7 +115,25 @@ export default function RiskAnalysisPage() {
     // In a real app, we'd trigger a loading state for the detailed panel
   };
 
-  if (loading) return null; // Handled by loading.tsx
+  if (loading) {
+    return (
+      <div className="p-6 space-y-8 max-w-7xl mx-auto">
+        <div className="flex justify-between items-end">
+          <div className="space-y-2">
+            <SkeletonText className="h-8 w-64" />
+            <SkeletonText className="h-4 w-96" />
+          </div>
+          <SkeletonText className="h-10 w-32" />
+        </div>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <SkeletonCard className="h-32" />
+          <SkeletonCard className="h-32" />
+          <SkeletonCard className="h-32" />
+        </div>
+        <SkeletonChart height="h-[600px]" />
+      </div>
+    );
+  }
 
   return (
     <div className="p-6 space-y-8 max-w-7xl mx-auto bg-slate-50/30 min-h-screen">
