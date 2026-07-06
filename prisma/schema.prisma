@@ -1,0 +1,150 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+model User {
+  id            String    @id @default(uuid())
+  name          String?
+  email         String    @unique
+  emailVerified DateTime?
+  image         String?
+  password      String?
+  
+  // Compliance
+  consentGiven  Boolean   @default(false)
+  consentDate   DateTime?
+  
+  portfolios    Portfolio[]
+  accounts      Account[]
+  sessions      Session[]
+
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+}
+
+model Account {
+  id                String  @id @default(uuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String?
+  access_token      String?
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String?
+  session_state     String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+}
+
+model Session {
+  id           String  @id @default(uuid())
+  sessionToken String  @unique
+  userId       String
+  expires      DateTime
+  user         User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model Portfolio {
+  id          String   @id @default(uuid())
+  userId      String
+  name        String   @default("My Mutual Fund Portfolio")
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  holdings    Holding[]
+  
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model Holding {
+  id          String   @id @default(uuid())
+  portfolioId String
+  schemeCode  String   // mfapi.in scheme code
+  units       Decimal  @db.Decimal(20, 4)
+  
+  portfolio   Portfolio @relation(fields: [portfolioId], references: [id], onDelete: Cascade)
+  transactions Transaction[]
+  
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model Transaction {
+  id          String   @id @default(uuid())
+  holdingId   String
+  date        DateTime
+  amount      Decimal  @db.Decimal(20, 2)
+  units       Decimal  @db.Decimal(20, 4)
+  type        TransactionType @default(BUY) // BUY, SELL, DIVIDEND
+  
+  holding     Holding  @relation(fields: [holdingId], references: [id], onDelete: Cascade)
+  
+  createdAt   DateTime @default(now())
+}
+
+enum TransactionType {
+  BUY
+  SELL
+  DIVIDEND
+}
+
+model SchemeMaster {
+  id          String   @id @default(uuid())
+  schemeCode  String   @unique
+  schemeName  String
+  category    String?
+  fundHouse   String?
+  latestNav   Decimal  @db.Decimal(20, 4)
+  lastUpdated DateTime @default(now())
+   
+  // SEBI Riskometer
+  riskLevel   String?  // Low, Low to Moderate, Moderate, Mod to High, High, Very High
+  volatility  Decimal? @db.Decimal(20, 6)
+  sharpeRatio Decimal? @db.Decimal(20, 4)
+  maxDrawdown Decimal? @db.Decimal(20, 6)
+  maxDrawdownDuration Int?  // In days
+  sortinoRatio  Decimal? @db.Decimal(20, 4)
+  riskScore     Decimal? @db.Decimal(20, 4)
+  
+  // Fund Manager Info
+  fundManagerName String?
+  fundManagerTenure String?
+  
+  // Additional Risk Metrics
+  alpha             Decimal? @db.Decimal(20, 4)
+  beta              Decimal? @db.Decimal(20, 4)
+  rSquared          Decimal? @db.Decimal(20, 4)
+  stdDev            Decimal? @db.Decimal(20, 6)
+  treynorRatio      Decimal? @db.Decimal(20, 4)
+
+  @@index([schemeName])
+  @@index([category])
+}
+
+model SchemeCatalog {
+  id          String   @id @default(uuid())
+  schemeCode  String   @unique
+  schemeName  String
+  category    String?
+  fundHouse   String?
+  updatedAt   DateTime @updatedAt
+
+  @@index([schemeName])
+  @@index([category])
+}
+
+model SectorCache {
+  id          String   @id @default(uuid())
+  schemeCode  String   @unique
+  sectorData  Json     @default("{}")
+  fetchedAt   DateTime @default(now())
+
+  @@index([schemeCode])
+}
