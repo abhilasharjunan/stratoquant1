@@ -1,4 +1,4 @@
-const MFAPI_TIMEOUT = 20000;
+const MFAPI_TIMEOUT = 8000;
 const navCache = new Map<string, any>();
 const MAX_RETRIES = 2;
 

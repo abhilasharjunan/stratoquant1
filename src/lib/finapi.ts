@@ -74,7 +74,7 @@ export async function getFundInsights(schemeCode: string): Promise<FundInsights 
     }
 
     const response = await fetch(`https://finapi.upvaly.com/api/mf/isin/${isin}`, {
-      signal: AbortSignal.timeout(10000),
+      signal: AbortSignal.timeout(8000),
     });
 
     if (!response.ok) {
