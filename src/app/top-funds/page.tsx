@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { 
   TrendingUp, Search,
@@ -45,6 +45,28 @@ export default function TopFundsPage() {
   const [status, setStatus] = useState<string>('Loading...');
   const [currentFunds, setCurrentFunds] = useState<Array<any>>([]);
   const isMounted = useRef(true);
+
+  const getProcessedData = useCallback(() => {
+    if (!fundsData) return [];
+    const list: any[] = [];
+    Object.entries(fundsData).forEach(([cat, funds]) => {
+      funds.forEach((f: any) => {
+        if ((activeCategory === 'All' || cat === activeCategory) &&
+            (f.schemeName.toLowerCase().includes(searchQuery.toLowerCase()))) {
+          list.push({ ...f, category: cat });
+        }
+      });
+    });
+    return list.sort((a, b) => {
+      const aVal = a.returns[sortConfig.key] || 0;
+      const bVal = b.returns[sortConfig.key] || 0;
+      return sortConfig.direction === 'asc' ? aVal - bVal : bVal - aVal;
+    });
+  }, [fundsData, activeCategory, searchQuery, sortConfig]);
+
+  useEffect(() => {
+    setCurrentFunds(getProcessedData());
+  }, [getProcessedData]);
 
   const [searchQuery, setSearchQuery] = useState('');
   const [sortConfig, setSortConfig] = useState<{ key: string; direction: 'asc' | 'desc' }>({
@@ -185,6 +207,13 @@ export default function TopFundsPage() {
     };
   }, []);
 
+  const handleSort = (key: string) => {
+    setSortConfig(prev => ({
+      key,
+      direction: prev.key === key ? (prev.direction === 'asc' ? 'desc' : 'asc') : 'desc'
+    }));
+  };
+
   const getReturnColor = (val: number | null) => {
     if (val === null) return 'text-slate-400';
     if (val >= 15) return 'text-emerald-600 font-bold';
@@ -195,24 +224,6 @@ export default function TopFundsPage() {
   const formatReturn = (val: number | null) => {
     if (val === null) return 'N/A';
     return `${val > 0 ? '+' : ''}${val.toFixed(2)}%`;
-  };
-
-  const getProcessedData = () => {
-    if (!fundsData) return [];
-    const list: any[] = [];
-    Object.entries(fundsData).forEach(([cat, funds]) => {
-      funds.forEach((f: any) => {
-        if ((activeCategory === 'All' || cat === activeCategory) &&
-            (f.schemeName.toLowerCase().includes(searchQuery.toLowerCase()))) {
-          list.push({ ...f, category: cat });
-        }
-      });
-    });
-    return list.sort((a, b) => {
-      const aVal = a.returns[sortConfig.key] || 0;
-      const bVal = b.returns[sortConfig.key] || 0;
-      return sortConfig.direction === 'asc' ? aVal - bVal : bVal - aVal;
-    });
   };
 
   if (loading || error) {
@@ -388,30 +399,30 @@ export default function TopFundsPage() {
                   <th className="p-4 text-xs font-semibold text-slate-500 uppercase tracking-wider sticky left-0 bg-slate-50 z-10">Rank</th>
                   <th className="p-4 text-xs font-semibold text-slate-500 uppercase tracking-wider">Fund Name</th>
                   <th className="p-4 text-xs font-semibold text-slate-500 uppercase tracking-wider">NAV</th>
-                  <th className="p-4 text-xs font-semibold text-slate-500 uppercase tracking-wider cursor-pointer hover:text-blue-600 transition-colors" onClick={() => setSortConfig({key: '1M', direction: sortConfig.direction === 'asc' ? 'desc' : 'asc'})}>
-                    1M {sortConfig.key === '1M' && (sortConfig.direction === 'asc' ? <ChevronUp size={12} className="inline ml-1" /> : <ChevronDown size={12} className="inline ml-1" />)}
-                  </th>
-                  <th className="p-4 text-xs font-semibold text-slate-500 uppercase tracking-wider cursor-pointer hover:text-blue-600 transition-colors" onClick={() => setSortConfig({key: '3M', direction: sortConfig.direction === 'asc' ? 'desc' : 'asc'})}>
-                    3M {sortConfig.key === '3M' && (sortConfig.direction === 'asc' ? <ChevronUp size={12} className="inline ml-1" /> : <ChevronDown size={12} className="inline ml-1" />)}
-                  </th>
-                  <th className="p-4 text-xs font-semibold text-slate-500 uppercase tracking-wider cursor-pointer hover:text-blue-600 transition-colors" onClick={() => setSortConfig({key: '6M', direction: sortConfig.direction === 'asc' ? 'desc' : 'asc'})}>
-                    6M {sortConfig.key === '6M' && (sortConfig.direction === 'asc' ? <ChevronUp size={12} className="inline ml-1" /> : <ChevronDown size={12} className="inline ml-1" />)}
-                  </th>
-                  <th className="p-4 text-xs font-semibold text-slate-500 uppercase tracking-wider cursor-pointer hover:text-blue-600 transition-colors" onClick={() => setSortConfig({key: '1Y', direction: sortConfig.direction === 'asc' ? 'desc' : 'asc'})}>
-                    1Y {sortConfig.key === '1Y' && (sortConfig.direction === 'asc' ? <ChevronUp size={12} className="inline ml-1" /> : <ChevronDown size={12} className="inline ml-1" />)}
-                  </th>
-                  <th className="p-4 text-xs font-semibold text-slate-500 uppercase tracking-wider cursor-pointer hover:text-blue-600 transition-colors" onClick={() => setSortConfig({key: '3Y', direction: sortConfig.direction === 'asc' ? 'desc' : 'asc'})}>
-                    3Y {sortConfig.key === '3Y' && (sortConfig.direction === 'asc' ? <ChevronUp size={12} className="inline ml-1" /> : <ChevronDown size={12} className="inline ml-1" />)}
-                  </th>
-                  <th className="p-4 text-xs font-semibold text-slate-500 uppercase tracking-wider cursor-pointer hover:text-blue-600 transition-colors" onClick={() => setSortConfig({key: '5Y', direction: sortConfig.direction === 'asc' ? 'desc' : 'asc'})}>
-                    5Y {sortConfig.key === '5Y' && (sortConfig.direction === 'asc' ? <ChevronUp size={12} className="inline ml-1" /> : <ChevronDown size={12} className="inline ml-1" />)}
-                  </th>
-                  <th className="p-4 text-xs font-semibold text-slate-500 uppercase tracking-wider cursor-pointer hover:text-blue-600 transition-colors" onClick={() => setSortConfig({key: '10Y', direction: sortConfig.direction === 'asc' ? 'desc' : 'asc'})}>
-                    10Y {sortConfig.key === '10Y' && (sortConfig.direction === 'asc' ? <ChevronUp size={12} className="inline ml-1" /> : <ChevronDown size={12} className="inline ml-1" />)}
-                  </th>
-                   <th className="p-4 text-xs font-semibold text-slate-500 uppercase tracking-wider cursor-pointer hover:text-blue-600 transition-colors" onClick={() => setSortConfig({key: 'sinceInception', direction: sortConfig.direction === 'asc' ? 'desc' : 'asc'})}>
-                     Inception {sortConfig.key === 'sinceInception' && (sortConfig.direction === 'asc' ? <ChevronUp size={12} className="inline ml-1" /> : <ChevronDown size={12} className="inline ml-1" />)}
+                   <th className="p-4 text-xs font-semibold text-slate-500 uppercase tracking-wider cursor-pointer hover:text-blue-600 transition-colors" onClick={() => handleSort('1M')}>
+                     1M {sortConfig.key === '1M' && (sortConfig.direction === 'asc' ? <ChevronUp size={12} className="inline ml-1" /> : <ChevronDown size={12} className="inline ml-1" />)}
                    </th>
+                   <th className="p-4 text-xs font-semibold text-slate-500 uppercase tracking-wider cursor-pointer hover:text-blue-600 transition-colors" onClick={() => handleSort('3M')}>
+                     3M {sortConfig.key === '3M' && (sortConfig.direction === 'asc' ? <ChevronUp size={12} className="inline ml-1" /> : <ChevronDown size={12} className="inline ml-1" />)}
+                   </th>
+                   <th className="p-4 text-xs font-semibold text-slate-500 uppercase tracking-wider cursor-pointer hover:text-blue-600 transition-colors" onClick={() => handleSort('6M')}>
+                     6M {sortConfig.key === '6M' && (sortConfig.direction === 'asc' ? <ChevronUp size={12} className="inline ml-1" /> : <ChevronDown size={12} className="inline ml-1" />)}
+                   </th>
+                   <th className="p-4 text-xs font-semibold text-slate-500 uppercase tracking-wider cursor-pointer hover:text-blue-600 transition-colors" onClick={() => handleSort('1Y')}>
+                     1Y {sortConfig.key === '1Y' && (sortConfig.direction === 'asc' ? <ChevronUp size={12} className="inline ml-1" /> : <ChevronDown size={12} className="inline ml-1" />)}
+                   </th>
+                   <th className="p-4 text-xs font-semibold text-slate-500 uppercase tracking-wider cursor-pointer hover:text-blue-600 transition-colors" onClick={() => handleSort('3Y')}>
+                     3Y {sortConfig.key === '3Y' && (sortConfig.direction === 'asc' ? <ChevronUp size={12} className="inline ml-1" /> : <ChevronDown size={12} className="inline ml-1" />)}
+                   </th>
+                   <th className="p-4 text-xs font-semibold text-slate-500 uppercase tracking-wider cursor-pointer hover:text-blue-600 transition-colors" onClick={() => handleSort('5Y')}>
+                     5Y {sortConfig.key === '5Y' && (sortConfig.direction === 'asc' ? <ChevronUp size={12} className="inline ml-1" /> : <ChevronDown size={12} className="inline ml-1" />)}
+                   </th>
+                   <th className="p-4 text-xs font-semibold text-slate-500 uppercase tracking-wider cursor-pointer hover:text-blue-600 transition-colors" onClick={() => handleSort('10Y')}>
+                     10Y {sortConfig.key === '10Y' && (sortConfig.direction === 'asc' ? <ChevronUp size={12} className="inline ml-1" /> : <ChevronDown size={12} className="inline ml-1" />)}
+                   </th>
+                    <th className="p-4 text-xs font-semibold text-slate-500 uppercase tracking-wider cursor-pointer hover:text-blue-600 transition-colors" onClick={() => handleSort('sinceInception')}>
+                      Inception {sortConfig.key === 'sinceInception' && (sortConfig.direction === 'asc' ? <ChevronUp size={12} className="inline ml-1" /> : <ChevronDown size={12} className="inline ml-1" />)}
+                    </th>
                 </tr>
               </thead>
               <tbody>
