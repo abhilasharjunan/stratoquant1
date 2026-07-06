@@ -11,8 +11,8 @@ import { ProgressCircle } from '@/components/ui/ProgressCircle';
 
 export const dynamic = 'force-dynamic';
 
-function formatReturn(value: number | null): string {
-  if (value === null) return 'N/A';
+function formatReturn(value: number | null | undefined): string {
+  if (value == null) return 'N/A';
   return `${value >= 0 ? '+' : ''}${value.toFixed(2)}%`;
 }
 
@@ -199,7 +199,7 @@ export default async function FundDetailsPage({ params }: { params: Promise<{ id
             <CardTitle className="text-sm font-medium text-slate-500">Latest NAV</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-3xl font-bold text-slate-900">₹{Number(analysis.latestNav).toFixed(2)}</div>
+            <div className="text-3xl font-bold text-slate-900">₹{analysis.latestNav != null ? Number(analysis.latestNav).toFixed(2) : 'N/A'}</div>
             <p className="text-xs text-slate-400 mt-1">
               Updated: {new Date(analysis.lastUpdated).toLocaleDateString()}
             </p>
@@ -312,7 +312,7 @@ export default async function FundDetailsPage({ params }: { params: Promise<{ id
                     <Activity size={14} className="text-slate-400" />
                     <span className="text-sm text-slate-500">Risk Score</span>
                   </div>
-                  <span className="text-sm font-bold text-slate-800">{Number(analysis.riskScore).toFixed(1)}/100</span>
+                  <span className="text-sm font-bold text-slate-800">{analysis.riskScore != null ? Number(analysis.riskScore).toFixed(1) : 'N/A'}/100</span>
                 </div>
               )}
               {analysis.fundManagerName && (
@@ -373,7 +373,7 @@ export default async function FundDetailsPage({ params }: { params: Promise<{ id
                     <tr key={i} className="border-b border-slate-50 hover:bg-slate-50/50 transition-colors">
                       <td className="p-3 text-sm font-medium text-slate-800">{h.stockName}</td>
                        <td className="p-3 text-sm text-slate-500">{h.sector}</td>
-                       <td className="p-3 text-sm font-mono text-right text-slate-700">{h.allocation.toFixed(2)}%</td>
+                       <td className="p-3 text-sm font-mono text-right text-slate-700">{h.allocation?.toFixed(2) ?? 'N/A'}%</td>
                     </tr>
                   ))}
                 </tbody>

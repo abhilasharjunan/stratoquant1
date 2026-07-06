@@ -283,7 +283,7 @@ export default function FundComparePage() {
                   <div className="space-y-3">
                     <div className="flex justify-between items-center">
                       <span className="text-xs text-slate-500">Risk Profile</span>
-                      <span className="text-xs font-bold text-slate-700">{fund.riskMetrics?.compositeScore.toFixed(1) || 'N/A'}</span>
+                      <span className="text-xs font-bold text-slate-700">{fund.riskMetrics?.compositeScore?.toFixed(1) ?? 'N/A'}</span>
                     </div>
                     <RiskOMeterInline level={getRiskLevel(fund.riskMetrics?.compositeScore)} />
                   </div>

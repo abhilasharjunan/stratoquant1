@@ -212,8 +212,8 @@ export default function TopFundsPage() {
     return 'text-rose-600 font-bold';
   };
 
-  const formatReturn = (val: number | null) => {
-    if (val === null) return 'N/A';
+  const formatReturn = (val: number | null | undefined) => {
+    if (val == null) return 'N/A';
     return `${val > 0 ? '+' : ''}${val.toFixed(2)}%`;
   };
 
@@ -322,9 +322,9 @@ export default function TopFundsPage() {
                   'Scheme Name': f.schemeName,
                   'Category': f.category,
                   'NAV': f.nav,
-                  '1Y': f.returns['1Y']?.toFixed(2) + '%' || '',
-                  '3Y': f.returns['3Y']?.toFixed(2) + '%' || '',
-                  '5Y': f.returns['5Y']?.toFixed(2) + '%' || '',
+                  '1Y': f.returns?.['1Y']?.toFixed(2) != null ? f.returns['1Y'].toFixed(2) + '%' : '',
+                  '3Y': f.returns?.['3Y']?.toFixed(2) != null ? f.returns['3Y'].toFixed(2) + '%' : '',
+                  '5Y': f.returns?.['5Y']?.toFixed(2) != null ? f.returns['5Y'].toFixed(2) + '%' : '',
                 }));
                 downloadCSV(csvData, 'top-performing-funds');
               }}
@@ -439,7 +439,7 @@ export default function TopFundsPage() {
                           <span className="text-[10px] text-slate-400 uppercase font-medium">{fund.category}</span>
                         </div>
                       </td>
-                      <td className="p-4 text-sm font-mono text-slate-600">₹{fund.nav.toFixed(2)}</td>
+                      <td className="p-4 text-sm font-mono text-slate-600">₹{fund.nav?.toFixed(2) ?? 'N/A'}</td>
                       <td className={`p-4 text-sm font-mono ${getReturnColor(fund.returns['1M'])}`}>{formatReturn(fund.returns['1M'])}</td>
                       <td className={`p-4 text-sm font-mono ${getReturnColor(fund.returns['3M'])}`}>{formatReturn(fund.returns['3M'])}</td>
                       <td className={`p-4 text-sm font-mono ${getReturnColor(fund.returns['6M'])}`}>{formatReturn(fund.returns['6M'])}</td>

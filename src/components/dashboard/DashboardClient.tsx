@@ -30,7 +30,7 @@ export default function DashboardClient({ analysis, divScore }: DashboardClientP
     },
     { 
       label: 'Overall XIRR', 
-      value: `${analysis.overallXirr.toFixed(2)}%`, 
+      value: `${analysis.overallXirr?.toFixed(2) ?? '0.00'}%`, 
       icon: <PieChart className="text-indigo-600" />, 
       trend: 'Annualized' 
     },
@@ -108,7 +108,7 @@ export default function DashboardClient({ analysis, divScore }: DashboardClientP
               {allocationData.map((item: { name: string; value: number }, i: number) => (
                 <div key={item.name} className="flex items-center gap-2">
                   <div className="w-3 h-3 rounded-full" style={{ backgroundColor: COLORS[i] }} />
-                  <span className="text-xs text-slate-600">{item.name}: {item.value.toFixed(1)}%</span>
+                  <span className="text-xs text-slate-600">{item.name}: {item.value?.toFixed(1) ?? '0.0'}%</span>
                 </div>
               ))}
             </div>
@@ -140,7 +140,7 @@ export default function DashboardClient({ analysis, divScore }: DashboardClientP
                     </div>
                     <div className="text-right">
                       <p className={`text-sm font-bold ${fund.xirr >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                        {fund.xirr.toFixed(2)}%
+                        {fund.xirr?.toFixed(2) ?? '0.00'}%
                       </p>
                       <p className="text-[10px] text-slate-400">XIRR</p>
                     </div>
