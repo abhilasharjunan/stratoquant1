@@ -2,12 +2,12 @@
 
 import React, { useState, useEffect, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
-import { TrendingUp, Search, ChevronUp, ChevronDown, Award, Sparkles, Loader2 } from 'lucide-react';
+import { TrendingUp, Search, ChevronUp, ChevronDown, Award, Sparkles } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { FadeIn } from '@/components/animations';
-import { SkeletonCard, SkeletonText, SkeletonChart } from '@/components/ui/skeletons';
+import { AILoader } from '@/components/ui/AILoader';
 import { downloadCSV } from '@/lib/export';
 
 type FundCategory =
@@ -99,24 +99,8 @@ export default function TopFundsPage() {
 
   if (loading) {
     return (
-      <div className="p-6 space-y-8 max-w-7xl mx-auto">
-        <div className="flex items-center gap-3 text-sm text-slate-500 mb-2">
-          <Loader2 className="animate-spin" size={16} />
-          <span>Loading top funds...</span>
-        </div>
-        <div className="flex justify-between items-end">
-          <div className="space-y-2">
-            <SkeletonText className="h-8 w-64" />
-            <SkeletonText className="h-4 w-96" />
-          </div>
-          <SkeletonText className="h-10 w-32" />
-        </div>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          <SkeletonCard className="h-32" />
-          <SkeletonCard className="h-32" />
-          <SkeletonCard className="h-32" />
-        </div>
-        <SkeletonChart height="h-[600px]" />
+      <div className="min-h-screen flex items-center justify-center bg-slate-50/30">
+        <AILoader />
       </div>
     );
   }
