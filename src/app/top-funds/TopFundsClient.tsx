@@ -59,6 +59,7 @@ export default function TopFundsClient() {
   }, [fundsData, activeCategory, searchQuery, sortConfig]);
 
   const fetchFunds = async () => {
+    const startTime = Date.now();
     setLoading(true);
     setError(null);
     try {
@@ -70,6 +71,11 @@ export default function TopFundsClient() {
       console.error("Failed to fetch funds", e);
       setError(e.message || "We're having trouble loading fund data. Please try again later.");
     } finally {
+      const elapsed = Date.now() - startTime;
+      const minLoad = 800;
+      if (elapsed < minLoad) {
+        await new Promise(r => setTimeout(r, minLoad - elapsed));
+      }
       setLoading(false);
     }
   };
