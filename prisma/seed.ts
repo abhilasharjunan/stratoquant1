@@ -252,6 +252,30 @@ async function main() {
   }
   console.log(`Created/verified ${holdingsData.length} holdings with transactions`);
 
+  // 4. Seed TopFundsCache so /top-funds works immediately
+  console.log('Seeding TopFundsCache...');
+  await prisma.topFundsCache.deleteMany();
+
+  const topFundsData = [
+    // Large Cap
+    { category: 'Large Cap', schemeCode: '118531', schemeName: 'Franklin India Large Cap Fund', fundHouse: 'Franklin Templeton Mutual Fund', nav: 187.45, returns: { '1M': 2.34, '3M': 6.78, '6M': 9.12, '1Y': 14.56, '3Y': 11.80, '5Y': 10.07, '10Y': 12.30 }, sinceInception: 13.50, rank: 1 },
+    { category: 'Large Cap', schemeCode: '119598', schemeName: 'Mirae Asset Large Cap Fund', fundHouse: 'Mirae Asset Mutual Fund', nav: 98.50, returns: { '1M': 1.89, '3M': 5.45, '6M': 8.67, '1Y': 13.20, '3Y': 10.50, '5Y': 9.80, '10Y': 11.90 }, sinceInception: 12.80, rank: 2 },
+    { category: 'Large Cap', schemeCode: '120015', schemeName: 'Axis Bluechip Fund', fundHouse: 'Axis Mutual Fund', nav: 45.82, returns: { '1M': 1.56, '3M': 4.89, '6M': 7.34, '1Y': 12.10, '3Y': 9.80, '5Y': 8.90, '10Y': 11.20 }, sinceInception: 12.10, rank: 3 },
+    // Mid Cap
+    { category: 'Mid Cap', schemeCode: '119060', schemeName: 'HDFC Mid-Cap Opportunities Fund', fundHouse: 'HDFC Mutual Fund', nav: 165.28, returns: { '1M': 3.45, '3M': 8.90, '6M': 14.56, '1Y': 22.30, '3Y': 15.60, '5Y': 12.80, '10Y': 16.40 }, sinceInception: 17.20, rank: 1 },
+    { category: 'Mid Cap', schemeCode: '119063', schemeName: 'Kotak Emerging Equity Fund', fundHouse: 'Kotak Mahindra Mutual Fund', nav: 88.35, returns: { '1M': 2.98, '3M': 7.65, '6M': 12.34, '1Y': 20.10, '3Y': 14.20, '5Y': 11.50, '10Y': 15.10 }, sinceInception: 15.80, rank: 2 },
+    // Small Cap
+    { category: 'Small Cap', schemeCode: '118550', schemeName: 'SBI Small Cap Fund', fundHouse: 'SBI Mutual Fund', nav: 156.75, returns: { '1M': 4.12, '3M': 10.45, '6M': 18.90, '1Y': 28.50, '3Y': 18.20, '5Y': 14.60, '10Y': 19.80 }, sinceInception: 20.50, rank: 1 },
+    // Flexi Cap
+    { category: 'Flexi Cap', schemeCode: '118834', schemeName: 'DSP Flexi Cap Fund', fundHouse: 'DSP Mutual Fund', nav: 210.30, returns: { '1M': 2.10, '3M': 5.80, '6M': 9.45, '1Y': 15.20, '3Y': 12.40, '5Y': 10.90, '10Y': 13.60 }, sinceInception: 14.20, rank: 1 },
+    { category: 'Flexi Cap', schemeCode: '118625', schemeName: 'ICICI Prudential Value Discovery Fund', fundHouse: 'ICICI Prudential Mutual Fund', nav: 185.60, returns: { '1M': 1.78, '3M': 5.12, '6M': 8.34, '1Y': 16.80, '3Y': 13.60, '5Y': 11.20, '10Y': 14.90 }, sinceInception: 15.30, rank: 2 },
+  ];
+
+  for (const entry of topFundsData) {
+    await prisma.topFundsCache.create({ data: entry });
+  }
+  console.log(`Seeded ${topFundsData.length} TopFundsCache entries`);
+
   console.log('\nSeed completed!');
   console.log('Login credentials: test@foliovega.com / test123');
 }

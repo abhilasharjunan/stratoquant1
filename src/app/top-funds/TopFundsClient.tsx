@@ -195,7 +195,7 @@ export default function TopFundsClient() {
           </button>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           <Card className="border-none shadow-sm bg-gradient-to-br from-blue-600 to-indigo-700 text-white">
             <CardContent className="p-6 flex flex-col justify-between h-full">
               <div className="flex justify-between items-start">
@@ -227,19 +227,7 @@ export default function TopFundsClient() {
             </CardContent>
           </Card>
 
-          <Card className="border-none shadow-sm bg-white">
-            <CardContent className="p-6 flex flex-col justify-between h-full">
-              <div className="flex justify-between items-start">
-                <div className="p-2 bg-indigo-50 rounded-lg text-indigo-600">
-                  <TrendingUp size={20} />
-                </div>
-              </div>
-              <div className="mt-8">
-                <p className="text-slate-500 text-sm font-medium">Data Source</p>
-                <h3 className="text-2xl font-bold text-slate-900">mfapi.in Real-time</h3>
-              </div>
-            </CardContent>
-          </Card>
+
         </div>
 
         <Card className="border-none shadow-xl bg-white overflow-hidden">

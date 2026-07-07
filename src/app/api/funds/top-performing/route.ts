@@ -28,7 +28,10 @@ export async function GET() {
     }
 
     const results = await syncTopFundsCache();
-    return NextResponse.json(results);
+    if (results && Object.keys(results).length > 0) {
+      return NextResponse.json(results);
+    }
+    return NextResponse.json({ error: "Top funds cache empty and sync failed. Wait for cron." }, { status: 503 });
   } catch (error) {
     console.error("Top Performing Funds API Error:", error);
     return NextResponse.json({ error: "Failed to fetch top funds" }, { status: 500 });
