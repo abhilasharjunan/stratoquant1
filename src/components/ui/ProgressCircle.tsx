@@ -10,24 +10,28 @@ interface ProgressCircleProps {
 export function ProgressCircle({ progress, size = 80, className = '' }: ProgressCircleProps) {
   const [animatedProgress, setAnimatedProgress] = useState(0);
   const rafRef = useRef<number | null>(null);
+  const animateRef = useRef<() => void>(() => {});
 
   const animate = useCallback(() => {
     setAnimatedProgress(prev => {
-      const step = (progress - prev) * 0.1;
+      const target = progress;
+      const step = (target - prev) * 0.1;
       if (Math.abs(step) > 0.1) {
-        rafRef.current = requestAnimationFrame(animate);
+        rafRef.current = requestAnimationFrame(animateRef.current);
         return prev + step;
       }
-      return progress;
+      return target;
     });
   }, [progress]);
 
+  animateRef.current = animate;
+
   useEffect(() => {
-    rafRef.current = requestAnimationFrame(animate);
+    rafRef.current = requestAnimationFrame(animateRef.current);
     return () => {
       if (rafRef.current !== null) cancelAnimationFrame(rafRef.current);
     };
-  }, [animate]);
+  }, [progress]);
 
   const radius = size / 2 - 10; // Leave room for stroke
   const circumference = 2 * Math.PI * radius;
