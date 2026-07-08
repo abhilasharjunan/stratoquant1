@@ -62,22 +62,29 @@ export async function syncTopFundsCache() {
     results[cat] = sorted;
   }
 
-  await prisma.topFundsCache.deleteMany();
-
   for (const [category, funds] of Object.entries(results)) {
-    const records = funds.map((fund, idx) => ({
-      category,
-      schemeCode: fund.schemeCode,
-      schemeName: fund.schemeName,
-      fundHouse: fund.fundHouse,
-      nav: fund.nav,
-      returns: fund.returns,
-      sinceInception: fund.sinceInception,
-      rank: idx + 1,
-    }));
-
-    for (const record of records) {
-      await prisma.topFundsCache.create({ data: record });
+    for (const [idx, fund] of funds.entries()) {
+      await prisma.topFundsCache.upsert({
+        where: { category_schemeCode: { category, schemeCode: fund.schemeCode } },
+        update: {
+          schemeName: fund.schemeName,
+          fundHouse: fund.fundHouse,
+          nav: fund.nav,
+          returns: fund.returns,
+          sinceInception: fund.sinceInception,
+          rank: idx + 1,
+        },
+        create: {
+          category,
+          schemeCode: fund.schemeCode,
+          schemeName: fund.schemeName,
+          fundHouse: fund.fundHouse,
+          nav: fund.nav,
+          returns: fund.returns,
+          sinceInception: fund.sinceInception,
+          rank: idx + 1,
+        },
+      });
     }
   }
 

@@ -1,5 +1,4 @@
 import { NextResponse } from "next/server";
-import { syncTopFundsCache } from "@/lib/sync-top-funds";
 import { prisma } from "@/lib/prisma";
 
 export const dynamic = 'force-dynamic';
@@ -27,11 +26,7 @@ export async function GET() {
       return NextResponse.json(results);
     }
 
-    const results = await syncTopFundsCache();
-    if (results && Object.keys(results).length > 0) {
-      return NextResponse.json(results);
-    }
-    return NextResponse.json({ error: "Top funds cache empty and sync failed. Wait for cron." }, { status: 503 });
+    return NextResponse.json({ error: "Top funds cache empty. Run the hourly cron or re-seed the database." }, { status: 503 });
   } catch (error) {
     console.error("Top Performing Funds API Error:", error);
     return NextResponse.json({ error: "Failed to fetch top funds" }, { status: 500 });
