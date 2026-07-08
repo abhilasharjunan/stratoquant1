@@ -252,9 +252,8 @@ async function main() {
   }
   console.log(`Created/verified ${holdingsData.length} holdings with transactions`);
 
-  // 4. Seed TopFundsCache so /top-funds works immediately
+  // 4. Seed TopFundsCache so /top-funds works immediately (uses upsert so it never clears cron-populated data)
   console.log('Seeding TopFundsCache...');
-  await prisma.topFundsCache.deleteMany();
 
   const topFundsData = [
     // Large Cap
@@ -272,7 +271,11 @@ async function main() {
   ];
 
   for (const entry of topFundsData) {
-    await prisma.topFundsCache.create({ data: entry });
+    await prisma.topFundsCache.upsert({
+      where: { category_schemeCode: { category: entry.category, schemeCode: entry.schemeCode } },
+      update: entry,
+      create: entry,
+    });
   }
   console.log(`Seeded ${topFundsData.length} TopFundsCache entries`);
 

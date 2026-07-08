@@ -37,11 +37,32 @@ export async function GET(request: NextRequest) {
       console.warn("Redis cache read error:", redisErr);
     }
 
+    // Fetch per-fund cached CAGR data from TopFundsCache (avoids external API calls)
+    const cachedFunds = await prisma.topFundsCache.findMany({
+      where: { schemeCode: { in: codes } },
+      select: { schemeCode: true, returns: true, sinceInception: true },
+    });
+    const cachedCAGR = new Map(cachedFunds.map(c => [c.schemeCode, {
+      '1Y': (c.returns as Record<string, number | null>)?.['1Y'] ?? null,
+      '3Y': (c.returns as Record<string, number | null>)?.['3Y'] ?? null,
+      '5Y': (c.returns as Record<string, number | null>)?.['5Y'] ?? null,
+    }]));
+
     const overallController = new AbortController();
     const overallTimeout = setTimeout(() => overallController.abort(), 25000);
 
     try {
       const fundPromises = codes.map(async (code) => {
+        const perFundCacheKey = `funds:single:${code}`;
+
+        // 1. Check per-fund Redis cache
+        if (redis) {
+          try {
+            const cached = await redis.get(perFundCacheKey);
+            if (cached) return JSON.parse(cached);
+          } catch {}
+        }
+
         try {
           const scheme = await prisma.schemeMaster.findUnique({
             where: { schemeCode: code },
@@ -56,24 +77,12 @@ export async function GET(request: NextRequest) {
           });
           
           if (!scheme) {
-            // Fallback: fetch from mfapi.in directly
             try {
               const details = await fetchSchemeDetails(code);
               if (details?.meta) {
                 const fallbackNav = parseFloat(details.data?.[0]?.nav) || 0;
-                let cagr1Y: number | null = null, cagr3Y: number | null = null, cagr5Y: number | null = null;
-                try {
-                  const navNow = await getHistoricalNav(code, 0);
-                  if (navNow) {
-                    const [n1, n3, n5] = await Promise.all([
-                      getHistoricalNav(code, 365), getHistoricalNav(code, 1095), getHistoricalNav(code, 1825)
-                    ]);
-                    cagr1Y = n1 ? calculateCAGR(navNow, n1, 365) : null;
-                    cagr3Y = n3 ? calculateCAGR(navNow, n3, 1095) : null;
-                    cagr5Y = n5 ? calculateCAGR(navNow, n5, 1825) : null;
-                  }
-                } catch {}
-                return {
+                const cagr = cachedCAGR.get(code) || { '1Y': null, '3Y': null, '5Y': null };
+                const result = {
                   schemeCode: code,
                   schemeName: details.meta.scheme_name || `Scheme ${code}`,
                   category: 'Other',
@@ -85,9 +94,11 @@ export async function GET(request: NextRequest) {
                   alpha: 0, beta: 0, rSquared: 0, treynorRatio: 0, riskScore: 0,
                   fundManagerName: null, fundManagerTenure: null,
                   aum: 'N/A', expenseRatio: 'N/A', sectorAllocation: {}, holdings: [],
-                  cagrReturns: { '1Y': cagr1Y, '3Y': cagr3Y, '5Y': cagr5Y },
+                  cagrReturns: cagr,
                   available: true
                 };
+                if (redis) await redis.set(perFundCacheKey, JSON.stringify(result), 'EX', 3600).catch(() => {});
+                return result;
               }
             } catch (fallbackErr) {
               console.warn(`Fallback failed for ${code}:`, fallbackErr);
@@ -96,34 +107,36 @@ export async function GET(request: NextRequest) {
           }
           
           let insights = null;
-          let cagrReturns_1Y: number | null = null;
-          let cagrReturns_3Y: number | null = null;
-          let cagrReturns_5Y: number | null = null;
-          
           try {
             insights = await getFundInsights(code);
           } catch (insightsError) {
             console.warn(`Failed to get insights for ${code}:`, insightsError);
           }
 
-          // Always calculate CAGR from historical NAV
-          try {
-            const currentNav = scheme.latestNav ? Number(scheme.latestNav) : await getHistoricalNav(code, 0);
-            if (currentNav) {
-              const [nav1Y, nav3Y, nav5Y] = await Promise.all([
-                getHistoricalNav(code, 365),
-                getHistoricalNav(code, 1095),
-                getHistoricalNav(code, 1825)
-              ]);
-              cagrReturns_1Y = nav1Y ? calculateCAGR(currentNav, nav1Y, 365) : null;
-              cagrReturns_3Y = nav3Y ? calculateCAGR(currentNav, nav3Y, 1095) : null;
-              cagrReturns_5Y = nav5Y ? calculateCAGR(currentNav, nav5Y, 1825) : null;
+          // Use TopFundsCache CAGR if available, else compute from historical NAV
+          let cagrReturns = cachedCAGR.get(code);
+          if (!cagrReturns) {
+            try {
+              const currentNav = scheme.latestNav ? Number(scheme.latestNav) : await getHistoricalNav(code, 0);
+              if (currentNav) {
+                const [nav1Y, nav3Y, nav5Y] = await Promise.all([
+                  getHistoricalNav(code, 365),
+                  getHistoricalNav(code, 1095),
+                  getHistoricalNav(code, 1825)
+                ]);
+                cagrReturns = {
+                  '1Y': nav1Y ? calculateCAGR(currentNav, nav1Y, 365) : null,
+                  '3Y': nav3Y ? calculateCAGR(currentNav, nav3Y, 1095) : null,
+                  '5Y': nav5Y ? calculateCAGR(currentNav, nav5Y, 1825) : null,
+                };
+              }
+            } catch (cagrErr) {
+              console.warn(`CAGR calc failed for ${code}:`, cagrErr);
             }
-          } catch (cagrErr) {
-            console.warn(`CAGR calc failed for ${code}:`, cagrErr);
           }
+          cagrReturns = cagrReturns || { '1Y': null, '3Y': null, '5Y': null };
           
-          return {
+          const result = {
             schemeCode: scheme.schemeCode,
             schemeName: scheme.schemeName,
             category: scheme.category,
@@ -147,9 +160,14 @@ export async function GET(request: NextRequest) {
             expenseRatio: insights?.expenseRatio || 'N/A',
             sectorAllocation: insights?.sectorAllocation || {},
             holdings: insights?.holdings || [],
-            cagrReturns: { '1Y': cagrReturns_1Y, '3Y': cagrReturns_3Y, '5Y': cagrReturns_5Y },
+            cagrReturns,
             available: true
           };
+
+          // Cache per-fund result in Redis
+          if (redis) await redis.set(perFundCacheKey, JSON.stringify(result), 'EX', 3600).catch(() => {});
+          
+          return result;
         } catch (error) {
           console.error(`Error processing fund ${code}:`, error);
           return { schemeCode: code, error: "Failed to load fund data", available: false };
