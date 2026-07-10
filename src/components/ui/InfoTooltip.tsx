@@ -14,7 +14,7 @@ import { cn } from "@/lib/utils";
 export function InfoTooltip({ children, className }: { children: React.ReactNode; className?: string }) {
   return (
     <TooltipPrimitive.Provider>
-      <TooltipPrimitive.Root delay={150}>
+      <TooltipPrimitive.Root>
         <TooltipPrimitive.Trigger
           className={cn(
             "inline-flex items-center justify-center text-slate-400 hover:text-slate-600 transition-colors align-middle cursor-help",
