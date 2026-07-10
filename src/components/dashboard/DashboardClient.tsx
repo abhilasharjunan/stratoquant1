@@ -6,15 +6,17 @@ import { TrendingUp, Wallet, PieChart, AlertCircle, ShieldAlert, ArrowRight, Act
 import { ResponsiveContainer, PieChart as RePie, Pie, Cell, Tooltip } from 'recharts';
 import { FadeIn } from '@/components/animations';
 import PortfolioSectorChart from '@/components/portfolio/PortfolioSectorChart';
+import { PortfolioHealthGauge } from '@/components/dashboard/PortfolioHealthGauge';
 
 const COLORS = ['#2563eb', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6'];
 
 interface DashboardClientProps {
   analysis: any;
   divScore: any;
+  riskAnalysis?: any;
 }
 
-export default function DashboardClient({ analysis, divScore }: DashboardClientProps) {
+export default function DashboardClient({ analysis, divScore, riskAnalysis }: DashboardClientProps) {
   const stats = [
     { 
       label: 'Total Portfolio Value', 
@@ -76,6 +78,15 @@ export default function DashboardClient({ analysis, divScore }: DashboardClientP
         ))}
       </div>
 
+      {(divScore?.score != null || riskAnalysis?.weightedScore != null) && (
+        <FadeIn delay={0.15}>
+          <PortfolioHealthGauge
+            diversificationScore={divScore?.score ?? null}
+            riskScore={riskAnalysis?.weightedScore ?? null}
+          />
+        </FadeIn>
+      )}
+
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <Card className="lg:col-span-1 border-none shadow-sm bg-white">
           <CardHeader>
@@ -119,11 +130,6 @@ export default function DashboardClient({ analysis, divScore }: DashboardClientP
           <Card className="lg:col-span-2 border-none shadow-sm bg-white">
             <CardHeader className="flex flex-row items-center justify-between">
               <CardTitle className="text-lg font-semibold">Fund Performance</CardTitle>
-              {divScore && (
-                <div className={`text-[10px] px-2 py-1 rounded-full font-bold uppercase ${divScore.score > 70 ? 'bg-green-100 text-green-700' : 'bg-orange-100 text-orange-700'}`}>
-                  Score: {divScore.score}/100
-                </div>
-              )}
             </CardHeader>
             <CardContent>
               <div className="space-y-4">
@@ -198,10 +204,4 @@ export default function DashboardClient({ analysis, divScore }: DashboardClientP
           <AlertCircle className="text-blue-600 mt-0.5" size={18} />
           <p className="text-xs text-blue-700 leading-relaxed">
             <strong className="font-semibold">Compliance Note:</strong> Returns calculated using XIRR methodology based on your transaction history and latest available NAV. 
-            Past performance is not a guarantee of future returns. Please refer to the scheme's SID for detailed risk factors.
-          </p>
-        </div>
-      </FadeIn>
-    </div>
-  );
-}
+            Past performance is not a guarantee of future returns. 

@@ -1,5 +1,15 @@
 import { fetchSchemeDetails } from "./mfapi";
 import { prisma } from "./prisma";
+import redis from "./redis";
+
+// Fund holdings/sector composition changes slowly for the vast majority of
+// mutual funds — a 6-hour DB cache window meant this endpoint (and the
+// duplicate calls that used to happen in risk-analysis.ts) got hit far more
+// than necessary. Widened to 24h; also add a short-lived in-memory-adjacent
+// Redis layer in front of the DB/external call for hot paths.
+// See FolioVeda_Audit_and_Roadmap.md, section 1.9 / 3.10 / 3.11.
+const SECTOR_CACHE_FRESHNESS_HOURS = 24;
+const REDIS_INSIGHTS_TTL_SECONDS = 3600; // 1 hour
 
 function getFundManagerFromPeer(peer: any): { name: string; tenure: string; experience: string } | null {
   if (!peer) return null;
@@ -36,12 +46,33 @@ export interface FundInsights {
 }
 
 export async function getFundInsights(schemeCode: string): Promise<FundInsights | null> {
+  const redisKey = `fundInsights:${schemeCode}`;
+
+  if (redis) {
+    try {
+      const cached = await redis.get(redisKey);
+      if (cached) return JSON.parse(cached);
+    } catch (err) {
+      console.warn(`Redis read failed for ${redisKey}:`, err);
+    }
+  }
+
+  const result = await fetchFundInsightsUncached(schemeCode);
+
+  if (redis && result) {
+    redis.set(redisKey, JSON.stringify(result), 'EX', REDIS_INSIGHTS_TTL_SECONDS).catch(() => {});
+  }
+
+  return result;
+}
+
+async function fetchFundInsightsUncached(schemeCode: string): Promise<FundInsights | null> {
   try {
-    const sixHoursAgo = new Date(Date.now() - 6 * 60 * 60 * 1000);
+    const freshnessCutoff = new Date(Date.now() - SECTOR_CACHE_FRESHNESS_HOURS * 60 * 60 * 1000);
     const cached = await prisma.sectorCache.findUnique({
       where: { schemeCode },
     });
-    if (cached && cached.fetchedAt > sixHoursAgo) {
+    if (cached && cached.fetchedAt > freshnessCutoff) {
       const sectorData = cached.sectorData as Record<string, number>;
       const schemeDetails = await fetchSchemeDetails(schemeCode);
       const schemeName = schemeDetails.meta?.scheme_name || schemeDetails.schemeName || `Scheme ${schemeCode}`;

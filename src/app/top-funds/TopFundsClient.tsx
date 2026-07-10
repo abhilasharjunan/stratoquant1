@@ -142,8 +142,8 @@ export default function TopFundsClient() {
             </div>
             <h1 className="text-4xl font-bold text-slate-900 tracking-tight">Top Performing Funds</h1>
             <p className="text-slate-500 max-w-2xl">
-              Curated analysis of the highest CAGR returns across mutual fund categories.
-              Updated hourly from live NAV data.
+              Ranked by CAGR across a curated shortlist of ~90 well-established funds spanning
+              9 categories — not the full AMFI universe. Updated hourly from live NAV data.
             </p>
           </div>
           <div className="flex items-center gap-3 bg-white p-1 rounded-lg border border-slate-200 shadow-sm">
@@ -236,7 +236,46 @@ export default function TopFundsClient() {
 
         </div>
 
-        <Card className="border-none shadow-xl bg-white overflow-hidden">
+        {/* Mobile: card list instead of forcing horizontal scroll on a 12-column table */}
+        <div className="sm:hidden space-y-3">
+          {currentFunds.length === 0 ? (
+            <Card className="border-none shadow-sm bg-white p-8 text-center text-slate-400 font-medium">
+              No funds matching your search or filter.
+            </Card>
+          ) : (
+            currentFunds.map((fund: any, idx: number) => (
+              <Card
+                key={fund.schemeCode}
+                className="border-none shadow-sm bg-white p-4 cursor-pointer active:bg-slate-50"
+                onClick={() => router.push(`/funds/${fund.schemeCode}`)}
+              >
+                <div className="flex items-start justify-between gap-2">
+                  <div className="min-w-0">
+                    <p className="text-sm font-semibold text-slate-800 truncate">{fund.schemeName}</p>
+                    <p className="text-[10px] text-slate-400 uppercase font-medium">{fund.category} · ₹{fund.nav?.toFixed(2) ?? 'N/A'}</p>
+                  </div>
+                  <span className="text-xs font-bold text-slate-400 shrink-0">#{activeCategory === 'All' ? idx + 1 : fund.rank}</span>
+                </div>
+                <div className="grid grid-cols-3 gap-2 mt-3 text-center">
+                  <div>
+                    <p className="text-[9px] text-slate-400 uppercase font-bold">1Y</p>
+                    <p className={`text-xs font-mono ${getReturnColor(fund.returns['1Y'])}`}>{formatReturn(fund.returns['1Y'])}</p>
+                  </div>
+                  <div>
+                    <p className="text-[9px] text-slate-400 uppercase font-bold">3Y</p>
+                    <p className={`text-xs font-mono ${getReturnColor(fund.returns['3Y'])}`}>{formatReturn(fund.returns['3Y'])}</p>
+                  </div>
+                  <div>
+                    <p className="text-[9px] text-slate-400 uppercase font-bold">5Y</p>
+                    <p className={`text-xs font-mono ${getReturnColor(fund.returns['5Y'])}`}>{formatReturn(fund.returns['5Y'])}</p>
+                  </div>
+                </div>
+              </Card>
+            ))
+          )}
+        </div>
+
+        <Card className="hidden sm:block border-none shadow-xl bg-white overflow-hidden">
           <div className="overflow-x-auto">
             <table className="w-full text-left border-collapse">
               <thead>
@@ -281,35 +320,3 @@ export default function TopFundsClient() {
                   currentFunds.map((fund: any, idx: number) => (
                     <tr
                       key={fund.schemeCode}
-                      onClick={() => router.push(`/funds/${fund.schemeCode}`)}
-                      className="border-b border-slate-50 hover:bg-slate-50/80 transition-all duration-200 cursor-pointer group"
-                    >
-                      <td className="p-4 text-sm font-bold text-slate-400 sticky left-0 bg-white group-hover:bg-slate-50/80 z-10">
-                        #{activeCategory === 'All' ? idx + 1 : fund.rank}
-                      </td>
-                      <td className="p-4">
-                        <div className="flex flex-col">
-                          <span className="text-sm font-semibold text-slate-800">{fund.schemeName}</span>
-                          <span className="text-[10px] text-slate-400 uppercase font-medium">{fund.category}</span>
-                        </div>
-                      </td>
-                      <td className="p-4 text-sm font-mono text-slate-600">₹{fund.nav?.toFixed(2) ?? 'N/A'}</td>
-                      <td className={`p-4 text-sm font-mono ${getReturnColor(fund.returns['1M'])}`}>{formatReturn(fund.returns['1M'])}</td>
-                      <td className={`p-4 text-sm font-mono ${getReturnColor(fund.returns['3M'])}`}>{formatReturn(fund.returns['3M'])}</td>
-                      <td className={`p-4 text-sm font-mono ${getReturnColor(fund.returns['6M'])}`}>{formatReturn(fund.returns['6M'])}</td>
-                      <td className={`p-4 text-sm font-mono ${getReturnColor(fund.returns['1Y'])}`}>{formatReturn(fund.returns['1Y'])}</td>
-                      <td className={`p-4 text-sm font-mono ${getReturnColor(fund.returns['3Y'])}`}>{formatReturn(fund.returns['3Y'])}</td>
-                      <td className={`p-4 text-sm font-mono ${getReturnColor(fund.returns['5Y'])}`}>{formatReturn(fund.returns['5Y'])}</td>
-                      <td className={`p-4 text-sm font-mono ${getReturnColor(fund.returns['10Y'])}`}>{formatReturn(fund.returns['10Y'])}</td>
-                      <td className={`p-4 text-sm font-mono ${getReturnColor(fund.sinceInception)}`}>{formatReturn(fund.sinceInception)}</td>
-                    </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
-          </div>
-        </Card>
-      </FadeIn>
-    </div>
-  );
-}

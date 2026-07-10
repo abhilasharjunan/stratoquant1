@@ -79,11 +79,17 @@ export const getPortfolioAnalysis = cache(async () => {
   let currentMarketValue = 0;
   let overallCashFlows: { amount: number; date: Date }[] = [];
 
+  // Single batched lookup instead of one findUnique() per holding (N+1 query fix
+  // — see FolioVeda_Audit_and_Roadmap.md, section 1.5/3.6).
+  const schemeCodes = [...new Set(portfolio.holdings.map((h: any) => h.schemeCode))];
+  const schemes = await prisma.schemeMaster.findMany({
+    where: { schemeCode: { in: schemeCodes as string[] } },
+  });
+  const schemeMap = new Map(schemes.map((s) => [s.schemeCode, s]));
+
   const holdingAnalysis = await Promise.all(
     portfolio.holdings.map(async (holding: any) => {
-      const scheme = await prisma.schemeMaster.findUnique({
-        where: { schemeCode: holding.schemeCode },
-      });
+      const scheme = schemeMap.get(holding.schemeCode);
 
       const nav = scheme?.latestNav || 0;
       const currentVal = Number(holding.units) * Number(nav);

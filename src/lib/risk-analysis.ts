@@ -1,5 +1,18 @@
-import { getHistoricalNav, calculateCAGR } from "./funds";
+import { getHistoricalNav } from "./funds";
 import { getFundInsights, FundInsights } from "./finapi";
+import { fetchSchemeDetails } from "./mfapi";
+import {
+  computeMonthlyReturns,
+  computeAnnualizedVolatility,
+  computeSortinoRatio,
+  computeMaxDrawdown,
+  computeSharpeRatio,
+  computeBetaAlphaRSquared,
+  computeTreynorRatio,
+  computeCompositeScore,
+  computeHHI,
+  computeSectorConcentration,
+} from "./risk-calculations";
 
 export interface RiskMetrics {
   volatility: number;
@@ -25,179 +38,105 @@ export interface FundRiskAnalysis {
   fundManagerTenure: string | null;
 }
 
-const RISK_FREE_RATE = 0.065; // 6.5% approx RBI rate
 const BENCHMARK_SCHEME_CODE = "118531"; // Franklin India Large Cap Fund as proxy for Nifty 50 TRI
 
-export async function calculateRiskMetrics(schemeCode: string): Promise<RiskMetrics | null> {
+/**
+ * Fetches ~`months` of NAV history sampled every 30 days, ordered newest-to-oldest
+ * (index 0 = most recent). This ordering matters: computeMonthlyReturns() assumes
+ * navs[i] is more recent than navs[i+1] — don't reverse this array.
+ */
+async function fetchMonthlyNavSeries(schemeCode: string, months: number): Promise<number[]> {
+  const navs: number[] = [];
+  for (let i = 0; i < months; i++) {
+    const nav = await getHistoricalNav(schemeCode, i * 30);
+    if (nav) navs.push(nav);
+  }
+  return navs;
+}
+
+/**
+ * Computes risk metrics using the tested pure functions in risk-calculations.ts
+ * (previously this logic was reimplemented inline here, untested, in parallel with
+ * the tested versions — see audit report section 1.3/3.3) and returns the
+ * FundInsights fetched along the way, so getFullRiskAnalysis doesn't need a second
+ * call to getFundInsights() for the same scheme (see 1.4/3.5).
+ */
+async function computeRiskMetricsWithInsights(
+  schemeCode: string
+): Promise<{ metrics: RiskMetrics; insights: FundInsights | null } | null> {
   try {
-    // Fetch NAV data for 3 years to calculate volatility, drawdown, and other metrics
-    // We'll sample monthly data for performance and stability
-    const schemeNavs: number[] = [];
-    const benchmarkNavs: number[] = [];
-    
-    for (let i = 0; i < 36; i++) {
-      const schemeNav = await getHistoricalNav(schemeCode, i * 30);
-      const benchmarkNav = await getHistoricalNav(BENCHMARK_SCHEME_CODE, i * 30);
-      
-      if (schemeNav) schemeNavs.push(schemeNav);
-      if (benchmarkNav) benchmarkNavs.push(benchmarkNav);
-    }
+    const [schemeNavs, benchmarkNavs] = await Promise.all([
+      fetchMonthlyNavSeries(schemeCode, 36),
+      fetchMonthlyNavSeries(BENCHMARK_SCHEME_CODE, 36),
+    ]);
 
     if (schemeNavs.length < 10 || benchmarkNavs.length < 10) return null;
 
-    // 1. Calculate Monthly Returns
-    const schemeReturns: number[] = [];
-    const benchmarkReturns: number[] = [];
-    
-    for (let i = 0; i < schemeNavs.length - 1; i++) {
-      schemeReturns.push((schemeNavs[i] - schemeNavs[i + 1]) / schemeNavs[i + 1]);
-      benchmarkReturns.push((benchmarkNavs[i] - benchmarkNavs[i + 1]) / benchmarkNavs[i + 1]);
-    }
+    const schemeReturns = computeMonthlyReturns(schemeNavs);
+    const benchmarkReturns = computeMonthlyReturns(benchmarkNavs);
 
-    // 2. Calculate basic statistics
-    const schemeMean = schemeReturns.reduce((a, b) => a + b, 0) / schemeReturns.length;
-    const benchmarkMean = benchmarkReturns.reduce((a, b) => a + b, 0) / benchmarkReturns.length;
-    
-    // 3. Volatility (Annualized Std Dev of returns)
-    const schemeVariance = schemeReturns.reduce((a, b) => a + Math.pow(b - schemeMean, 2), 0) / schemeReturns.length;
-    const volatility = Math.sqrt(schemeVariance) * Math.sqrt(12); // Annualized
-    
-    // 4. Downside Deviation (for Sortino ratio)
-    const downsideReturns = schemeReturns.filter(r => r < RISK_FREE_RATE / 12);
-    const downsideVariance = downsideReturns.reduce((a, b) => a + Math.pow(b - (RISK_FREE_RATE / 12), 2), 0) / downsideReturns.length;
-    const downsideDeviation = Math.sqrt(downsideVariance) * Math.sqrt(12);
-    const sortinoRatio = downsideDeviation > 0 ? ((schemeMean * 12) - RISK_FREE_RATE) / downsideDeviation : 0;
-    
-    // 5. Max Drawdown and Duration
-    let peak = -Infinity;
-    let peakIndex = 0;
-    let maxDD = 0;
-    let maxDDStart = 0;
-    let maxDDEnd = 0;
-    
-    for (let i = 0; i < schemeNavs.length; i++) {
-      const nav = schemeNavs[i];
-      if (nav > peak) {
-        peak = nav;
-        peakIndex = i;
-      }
-      const dd = (peak - nav) / peak;
-      if (dd > maxDD) {
-        maxDD = dd;
-        maxDDStart = peakIndex;
-        maxDDEnd = i;
-      }
-    }
-    
-    const maxDrawdownDuration = maxDDEnd - maxDDStart; // in months
-    
-    // 6. Sharpe Ratio
-    const avgReturn = schemeMean * 12;
-    const sharpeRatio = (avgReturn - RISK_FREE_RATE) / volatility;
-    
-    // 7. Beta, Alpha, R-squared vs Benchmark
-    // Beta = Covariance(Rp, Rb) / Variance(Rb)
-    const covariance = schemeReturns.reduce((acc, ret, idx) => {
-      return acc + (ret - schemeMean) * (benchmarkReturns[idx] - benchmarkMean);
-    }, 0) / schemeReturns.length;
-    
-    const benchmarkVariance = benchmarkReturns.reduce((a, b) => a + Math.pow(b - benchmarkMean, 2), 0) / benchmarkReturns.length;
-    const beta = benchmarkVariance !== 0 ? covariance / benchmarkVariance : 1;
-    
-    // Alpha = Rp - [Rf + Beta*(Rb - Rf)]
-    const avgBenchmarkReturn = benchmarkMean * 12;
-    const alpha = avgReturn - (RISK_FREE_RATE + beta * (avgBenchmarkReturn - RISK_FREE_RATE));
-    
-    // R-squared
-    const totalSumSquares = schemeReturns.reduce((acc, ret) => acc + Math.pow(ret - schemeMean, 2), 0);
-    const residualSumSquares = schemeReturns.reduce((acc, ret, idx) => {
-      const predicted = schemeMean + beta * (benchmarkReturns[idx] - benchmarkMean);
-      return acc + Math.pow(ret - predicted, 2);
-    }, 0);
-    const rSquared = totalSumSquares !== 0 ? 1 - (residualSumSquares / totalSumSquares) : 0;
-    
-    // 8. Treynor Ratio = (Rp - Rf) / Beta
-    const treynorRatio = beta !== 0 ? (avgReturn - RISK_FREE_RATE) / beta : 0;
-    
-    // 9. Portfolio Metrics (from FinAPI)
+    const volatility = computeAnnualizedVolatility(schemeReturns);
+    const sortinoRatio = computeSortinoRatio(schemeReturns);
+    const { drawdown: maxDrawdown, duration: maxDrawdownDuration } = computeMaxDrawdown(schemeNavs);
+    const sharpeRatio = computeSharpeRatio(schemeReturns);
+    const { beta, alpha, rSquared } = computeBetaAlphaRSquared(schemeReturns, benchmarkReturns);
+    const treynorRatio = computeTreynorRatio(schemeReturns, beta);
+
     const insights = await getFundInsights(schemeCode);
-    let hhi = 0;
-    let sectorConc = 0;
-    let fundManagerName = null;
-    let fundManagerTenure = null;
+    const concentrationRisk = insights
+      ? computeHHI(insights.holdings.map((h) => ({ allocation: h.allocation })))
+      : 0;
+    const sectorConcentration = insights ? computeSectorConcentration(insights.sectorAllocation) : 0;
 
-    if (insights) {
-      // HHI = sum of squared weights
-      hhi = insights.holdings.reduce((sum, h) => sum + Math.pow(h.allocation, 2), 0);
-      
-      // Sector Concentration (Top 3 sectors)
-      const sortedSectors = Object.entries(insights.sectorAllocation)
-        .sort(([, a], [, b]) => b - a)
-        .slice(0, 3)
-        .reduce((sum, [, val]) => sum + val, 0);
-      sectorConc = sortedSectors;
-      
-      // Fund Manager Info (if available)
-      fundManagerName = insights.fundManager?.name || null;
-      fundManagerTenure = insights.fundManager?.tenure || null;
-    }
+    const compositeScore = computeCompositeScore({
+      volatility, maxDrawdown, sharpeRatio, sortinoRatio, alpha, beta, rSquared,
+    });
 
-    // 10. Composite Score (0-100)
-    // Weights: Volatility(25%), MaxDD(20%), Sharpe(20%), Sortino(15%), Alpha(10%), Beta(5%), R-squared(5%)
-    const normVol = Math.min(volatility * 200, 100); // Cap at 100
-    const normDD = Math.min(maxDD * 200, 100);
-    const normSharpe = Math.max(0, Math.min(sharpeRatio * 25, 100)); // Sharpe 0-4 -> 0-100
-    const normSortino = Math.max(0, Math.min(sortinoRatio * 25, 100)); // Sortino 0-4 -> 0-100
-    const normAlpha = Math.max(0, Math.min((alpha + 0.1) * 250, 100)); // Alpha -0.1 to 0.3 -> 0-100
-    const normBeta = Math.max(0, Math.min((2 - Math.abs(beta - 1)) * 50, 100)); // Beta 0-2 -> 100-0 (closer to 1 is better)
-    const normRSquared = Math.min(rSquared * 100, 100); // R-squared 0-1 -> 0-100
-    
-    const compositeScore = (normVol * 0.25) + (normDD * 0.2) + (normSharpe * 0.2) + (normSortino * 0.15) + (normAlpha * 0.1) + (normBeta * 0.05) + (normRSquared * 0.05);
-
-    return {
+    const metrics: RiskMetrics = {
       volatility,
-      maxDrawdown: maxDD,
-      maxDrawdownDuration: maxDrawdownDuration,
+      maxDrawdown,
+      maxDrawdownDuration,
       sharpeRatio,
       sortinoRatio,
       alpha,
       beta,
       rSquared,
       treynorRatio,
-      concentrationRisk: hhi,
-      sectorConcentration: sectorConc,
-      compositeScore
+      concentrationRisk,
+      sectorConcentration,
+      compositeScore,
     };
+
+    return { metrics, insights };
   } catch (error) {
     console.error(`Risk calculation error for ${schemeCode}:`, error);
     return null;
   }
 }
 
+export async function calculateRiskMetrics(schemeCode: string): Promise<RiskMetrics | null> {
+  const result = await computeRiskMetricsWithInsights(schemeCode);
+  return result?.metrics ?? null;
+}
+
 export async function getFullRiskAnalysis(schemeCode: string): Promise<FundRiskAnalysis | null> {
   try {
-    const metrics = await calculateRiskMetrics(schemeCode);
-    if (!metrics) return null;
+    const result = await computeRiskMetricsWithInsights(schemeCode);
+    if (!result) return null;
+    const { metrics, insights } = result;
 
-    const insights = await getFundInsights(schemeCode);
-    
-    // Fetch basic name from mfapi since we need it for the UI
-    // In a real app we'd use a database cache
-    const details = await (async () => {
-      try {
-        const res = await fetch(`https://api.mfapi.in/mf/${schemeCode}`);
-        const json = await res.json();
-        return json.meta;
-      } catch { return null; }
-    })();
+    // Use the cached mfapi.in helper (fetchSchemeDetails already hits this exact
+    // endpoint and caches the response) instead of a second, uncached raw fetch
+    // just to read the scheme name.
+    const details = await fetchSchemeDetails(schemeCode).catch(() => null);
 
     return {
       schemeCode,
-      schemeName: details?.scheme_name || "Unknown Fund",
+      schemeName: details?.meta?.scheme_name || insights?.schemeName || "Unknown Fund",
       metrics,
       insights,
       fundManagerName: insights?.fundManager?.name || null,
-      fundManagerTenure: insights?.fundManager?.tenure || null
+      fundManagerTenure: insights?.fundManager?.tenure || null,
     };
   } catch (error) {
     console.error(`Full risk analysis error for ${schemeCode}:`, error);

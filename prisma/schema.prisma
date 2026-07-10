@@ -70,12 +70,16 @@ model Holding {
   portfolioId String
   schemeCode  String   // mfapi.in scheme code
   units       Decimal  @db.Decimal(20, 4)
-  
+
   portfolio   Portfolio @relation(fields: [portfolioId], references: [id], onDelete: Cascade)
   transactions Transaction[]
-  
+
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
+
+  // One holding row per fund per portfolio — transactions accumulate units onto it.
+  // Added to fix the import bug where every CSV/CAS row created a brand new Holding.
+  @@unique([portfolioId, schemeCode])
 }
 
 model Transaction {
@@ -125,6 +129,10 @@ model SchemeMaster {
   rSquared          Decimal? @db.Decimal(20, 4)
   stdDev            Decimal? @db.Decimal(20, 6)
   treynorRatio      Decimal? @db.Decimal(20, 4)
+  // Holdings-based concentration metrics, persisted so /api/funds/risk-analysis
+  // can read them from cache instead of recomputing live (see 3.4 in the audit).
+  concentrationRisk   Decimal? @db.Decimal(20, 6) // HHI of top disclosed holdings
+  sectorConcentration Decimal? @db.Decimal(20, 4) // Top-3-sector % of top disclosed holdings
 
   @@index([schemeName])
   @@index([category])

@@ -28,10 +28,16 @@ export async function getPortfolioRiskAnalysis() {
   const holdingRisks: any[] = [];
   const categoryAllocation: Record<string, number> = {};
 
+  // Single batched lookup instead of one findUnique() per holding (N+1 query fix
+  // — see FolioVeda_Audit_and_Roadmap.md, section 1.5/3.6).
+  const schemeCodes = [...new Set(portfolio.holdings.map((h) => h.schemeCode))];
+  const schemes = await prisma.schemeMaster.findMany({
+    where: { schemeCode: { in: schemeCodes } },
+  });
+  const schemeMap = new Map(schemes.map((s) => [s.schemeCode, s]));
+
   for (const holding of portfolio.holdings) {
-    const scheme = await prisma.schemeMaster.findUnique({
-      where: { schemeCode: holding.schemeCode }
-    });
+    const scheme = schemeMap.get(holding.schemeCode);
 
     if (!scheme) continue;
 

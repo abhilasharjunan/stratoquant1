@@ -1,13 +1,15 @@
 import { getPortfolioAnalysis } from "@/lib/analysis";
 import { getPortfolioDiversification } from "@/lib/diversification";
+import { getPortfolioRiskAnalysis } from "@/lib/portfolio-risk";
 import DashboardClient from "@/components/dashboard/DashboardClient";
 
 export const dynamic = 'force-dynamic';
 
 export default async function DashboardPage() {
-  const [analysis, divScore] = await Promise.all([
+  const [analysis, divScore, riskAnalysis] = await Promise.all([
     getPortfolioAnalysis(),
-    getPortfolioDiversification()
+    getPortfolioDiversification(),
+    getPortfolioRiskAnalysis(),
   ]);
 
   if (!analysis) {
@@ -23,10 +25,3 @@ export default async function DashboardPage() {
           >
             Add Your First Holding
           </a>
-        </div>
-      </div>
-    );
-  }
-
-  return <DashboardClient analysis={analysis} divScore={divScore} />;
-}

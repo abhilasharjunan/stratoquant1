@@ -13,6 +13,7 @@ import { SectorPieChart } from '@/components/funds/SectorPieChart';
 import { VolatilityChart } from '@/components/funds/VolatilityChart';
 import { SkeletonCard, SkeletonText, SkeletonChart } from '@/components/ui/skeletons';
 import { downloadCSV } from '@/lib/export';
+import { MetricLabel, METRIC_EXPLANATIONS } from '@/components/ui/InfoTooltip';
 
 type FundCategory = 
   | "Large Cap" | "Mid Cap" | "Small Cap" | "Flexi Cap" 
@@ -254,12 +255,13 @@ export default function RiskAnalysisPage() {
                    <tr>
                      <th className="p-4 text-xs font-semibold text-slate-500 uppercase tracking-wider">Fund</th>
                      <th className="p-4 text-xs font-semibold text-slate-500 uppercase tracking-wider cursor-pointer hover:text-rose-600" onClick={() => setSortConfig({key: 'compositeScore', direction: sortConfig.direction === 'asc' ? 'desc' : 'asc'})}>
-                       Risk Score {sortConfig.key === 'compositeScore' && (sortConfig.direction === 'asc' ? <ChevronUp size={12} className="inline ml-1" /> : <ChevronDown size={12} className="inline ml-1" />)}
+                       <MetricLabel label="Risk Score" tooltip={METRIC_EXPLANATIONS.compositeScore} />
+                       {sortConfig.key === 'compositeScore' && (sortConfig.direction === 'asc' ? <ChevronUp size={12} className="inline ml-1" /> : <ChevronDown size={12} className="inline ml-1" />)}
                      </th>
-                     <th className="p-4 text-xs font-semibold text-slate-500 uppercase tracking-wider">Volatility</th>
-                     <th className="p-4 text-xs font-semibold text-slate-500 uppercase tracking-wider">Sharpe</th>
-                     <th className="p-4 text-xs font-semibold text-slate-500 uppercase tracking-wider">Sortino</th>
-                     <th className="p-4 text-xs font-semibold text-slate-500 uppercase tracking-wider">Max DD</th>
+                     <th className="p-4 text-xs font-semibold text-slate-500 uppercase tracking-wider"><MetricLabel label="Volatility" tooltip={METRIC_EXPLANATIONS.volatility} /></th>
+                     <th className="p-4 text-xs font-semibold text-slate-500 uppercase tracking-wider"><MetricLabel label="Sharpe" tooltip={METRIC_EXPLANATIONS.sharpeRatio} /></th>
+                     <th className="p-4 text-xs font-semibold text-slate-500 uppercase tracking-wider"><MetricLabel label="Sortino" tooltip={METRIC_EXPLANATIONS.sortinoRatio} /></th>
+                     <th className="p-4 text-xs font-semibold text-slate-500 uppercase tracking-wider"><MetricLabel label="Max DD" tooltip={METRIC_EXPLANATIONS.maxDrawdown} /></th>
                      <th className="p-4 text-xs font-semibold text-slate-500 uppercase tracking-wider">DD Duration</th>
                      <th className="p-4 text-xs font-semibold text-slate-500 uppercase tracking-wider">Risk Bar</th>
                    </tr>
@@ -319,7 +321,9 @@ export default function RiskAnalysisPage() {
                 <FadeIn>
                   <div className="space-y-6">
                     <div className="p-4 bg-slate-50 rounded-xl border border-slate-100">
-                      <h4 className="text-xs font-bold text-slate-400 uppercase mb-3">Portfolio Concentration (HHI)</h4>
+                      <h4 className="text-xs font-bold text-slate-400 uppercase mb-3">
+                        <MetricLabel label="Portfolio Concentration (HHI)" tooltip={METRIC_EXPLANATIONS.concentrationRisk} />
+                      </h4>
                       <div className="flex items-end justify-between mb-1">
                         <span className="text-2xl font-bold text-slate-900">{selectedFund.metrics.concentrationRisk.toFixed(4)}</span>
                         <span className="text-xs text-slate-500">Higher = More Concentrated</span>
@@ -364,21 +368,7 @@ export default function RiskAnalysisPage() {
 
                     <div className="grid grid-cols-2 gap-3">
                       <div className="p-3 bg-slate-50 rounded-lg border border-slate-100">
-                        <p className="text-[10px] text-slate-500 uppercase font-bold">Sharpe Ratio</p>
-                        <p className="text-lg font-bold text-slate-900">{selectedFund.metrics.sharpeRatio.toFixed(2)}</p>
-                      </div>
-                      <div className="p-3 bg-slate-50 rounded-lg border border-slate-100">
-                        <p className="text-[10px] text-slate-500 uppercase font-bold">Max Drawdown</p>
-                        <p className="text-lg font-bold text-rose-600">{(selectedFund.metrics.maxDrawdown * 100).toFixed(2)}%</p>
-                      </div>
-                    </div>
-                  </div>
-                </FadeIn>
-              )}
-            </CardContent>
-          </Card>
-        </div>
-      </FadeIn>
-    </div>
-  );
-}
+                        <p className="text-[10px] text-slate-500 uppercase font-bold">
+                          <MetricLabel label="Sharpe Ratio" tooltip={METRIC_EXPLANATIONS.sharpeRatio} />
+                        </p>
+                   

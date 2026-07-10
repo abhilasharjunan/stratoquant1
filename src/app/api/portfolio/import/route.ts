@@ -30,9 +30,14 @@ export async function POST(req: Request) {
     await prisma.$transaction(async (tx: any) => {
       for (const row of data) {
         const holding = await tx.holding.upsert({
-          where: { 
-            id: row.holdingId || 'placeholder-uuid', // In real case, match schemeCode + portfolioId
-            // Note: Using a custom logic for finding existing holding
+          // One Holding per (portfolio, scheme). Repeated CAS/CSV rows for the
+          // same fund accumulate units onto this single row instead of creating
+          // a duplicate holding per transaction.
+          where: {
+            portfolioId_schemeCode: {
+              portfolioId: portfolio.id,
+              schemeCode: row.schemeCode,
+            },
           },
           update: { units: { increment: row.units } },
           create: {

@@ -22,10 +22,11 @@ describe('Financial Stress Tests', () => {
     }
     // Final valuation
     flows.push({ amount: 450000, date: new Date('2023-01-01') });
-    
+
     const result = calculateXIRR(flows);
     expect(result).toBeDefined();
-    expect(isNaN(result)).toBe(false);
+    expect(result).not.toBeNull();
+    expect(isNaN(result!)).toBe(false);
   });
 
   it('handles erratic cash flows (Buy/Sell/Buy)', () => {
@@ -36,6 +37,4 @@ describe('Financial Stress Tests', () => {
       { amount: 18000, date: new Date('2023-01-01') },  // Current Value
     ];
     const result = calculateXIRR(flows);
-    expect(result).toBeDefined();
-  });
-});
+    expect(r

@@ -6,6 +6,7 @@ import { SectorPieChart } from '@/components/funds/SectorPieChart';
 import { getPortfolioRiskAnalysis } from '@/lib/portfolio-risk';
 import { ShieldCheck, Activity, PieChart, AlertCircle, BarChart3, Download } from 'lucide-react';
 import { FadeIn } from '@/components/animations';
+import { MetricLabel, METRIC_EXPLANATIONS } from '@/components/ui/InfoTooltip';
 
 export default async function PortfolioRiskPage() {
   const analysis = await getPortfolioRiskAnalysis();
@@ -31,6 +32,14 @@ export default async function PortfolioRiskPage() {
     return 'Very High';
   };
 
+  // Progressive disclosure: lead with a one-line, plain-language verdict before
+  // the detailed ratios below (audit report, Phase 2 "progressive disclosure").
+  const verdict = analysis.weightedScore < 40
+    ? `Lower risk overall (${getRiskLevel(analysis.weightedScore)}), concentration index of ${analysis.hhi.toFixed(2)}.`
+    : analysis.weightedScore < 70
+    ? `Moderate risk overall, concentration index of ${analysis.hhi.toFixed(2)}.`
+    : `Higher risk overall (${getRiskLevel(analysis.weightedScore)}) — consider reviewing concentration and volatility below.`;
+
   return (
     <div className="p-6 max-w-6xl mx-auto space-y-8">
       <FadeIn>
@@ -43,6 +52,9 @@ export default async function PortfolioRiskPage() {
             <h1 className="text-4xl font-bold text-slate-900 tracking-tight">Risk Aggregation</h1>
             <p className="text-slate-500 max-w-2xl">
               Weighted analysis of your current portfolio's risk exposure and diversification.
+            </p>
+            <p className="text-sm font-medium text-slate-700 bg-slate-50 border border-slate-100 rounded-lg px-3 py-2 inline-block">
+              {verdict}
             </p>
           </div>
           <div className="flex items-center gap-3">
@@ -64,7 +76,9 @@ export default async function PortfolioRiskPage() {
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           <Card className="border-none shadow-sm bg-white">
             <CardHeader>
-              <CardTitle className="text-sm font-medium text-slate-500">Aggregate Risk Score</CardTitle>
+              <CardTitle className="text-sm font-medium text-slate-500">
+                <MetricLabel label="Aggregate Risk Score" tooltip={METRIC_EXPLANATIONS.compositeScore} />
+              </CardTitle>
             </CardHeader>
             <CardContent className="flex flex-col items-center justify-center space-y-6 py-6">
               <RiskOMeter level={getRiskLevel(analysis.weightedScore)} />
@@ -77,7 +91,9 @@ export default async function PortfolioRiskPage() {
 
           <Card className="border-none shadow-sm bg-white">
             <CardHeader>
-              <CardTitle className="text-sm font-medium text-slate-500">Portfolio Volatility</CardTitle>
+              <CardTitle className="text-sm font-medium text-slate-500">
+                <MetricLabel label="Portfolio Volatility" tooltip={METRIC_EXPLANATIONS.volatility} />
+              </CardTitle>
             </CardHeader>
             <CardContent className="flex flex-col items-center justify-center space-y-6 py-6">
               <div className="p-4 bg-blue-50 rounded-full text-blue-600">
@@ -92,7 +108,9 @@ export default async function PortfolioRiskPage() {
 
           <Card className="border-none shadow-sm bg-white">
             <CardHeader>
-              <CardTitle className="text-sm font-medium text-slate-500">Diversification (HHI)</CardTitle>
+              <CardTitle className="text-sm font-medium text-slate-500">
+                <MetricLabel label="Diversification (HHI)" tooltip={METRIC_EXPLANATIONS.hhi} />
+              </CardTitle>
             </CardHeader>
             <CardContent className="flex flex-col items-center justify-center space-y-6 py-6">
               <div className="p-4 bg-indigo-50 rounded-full text-indigo-600">
@@ -159,31 +177,4 @@ export default async function PortfolioRiskPage() {
                       <td className="p-4">
                         <div className="flex flex-col">
                           <span className="text-sm font-semibold text-slate-800">{h.schemeName}</span>
-                          <span className="text-[10px] text-slate-400 uppercase">{h.category}</span>
-                        </div>
-                      </td>
-                      <td className="p-4 text-sm font-mono text-slate-600">
-                        {((h.currentValue / analysis.totalValue) * 100).toFixed(2)}%
-                      </td>
-                      <td className="p-4 text-sm font-mono text-slate-800 font-medium">
-                        ₹{h.currentValue.toLocaleString('en-IN')}
-                      </td>
-                      <td className="p-4 text-sm font-mono text-slate-600">
-                        {(h.volatility * 100).toFixed(2)}%
-                      </td>
-                      <td className="p-4">
-                        <Badge variant="outline" className="text-slate-700 font-bold">
-                          {h.riskScore.toFixed(1)}
-                        </Badge>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </CardContent>
-        </Card>
-      </FadeIn>
-    </div>
-  );
-}
+          

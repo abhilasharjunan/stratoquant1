@@ -1,3 +1,5 @@
+import { RISK_FREE_RATE } from "./config";
+
 export interface ReturnStats {
   volatility: number;
   maxDrawdown: number;
@@ -11,7 +13,6 @@ export interface ReturnStats {
   compositeScore: number;
 }
 
-const RISK_FREE_RATE = 0.065;
 const MONTHS_IN_YEAR = 12;
 const MONTHLY_RFR = RISK_FREE_RATE / MONTHS_IN_YEAR;
 

@@ -38,18 +38,42 @@ export function calculateXIRR(cashFlows: { amount: number; date: Date }[]) {
   };
 
   let rate = x0;
+  let converged = false;
   for (let i = 0; i < maxIterations; i++) {
     const npv = getNetPresentValue(rate);
     const derivative = getDerivative(rate);
 
-    if (Math.abs(npv) < precision) return rate;
+    if (Math.abs(npv) < precision) { converged = true; break; }
     if (derivative === 0) break;
 
     const newRate = rate - npv / derivative;
-    // Guard against divergence (Infinity/NaN)
-    if (!isFinite(newRate)) break;
+    // Guard against divergence (Infinity/NaN) or overshooting below -100%,
+    // where (1 + rate) raised to a fractional power produces NaN.
+    if (!isFinite(newRate) || newRate <= -1) break;
     rate = newRate;
+    if (Math.abs(getNetPresentValue(rate)) < precision) { converged = true; break; }
   }
 
-  return isFinite(rate) ? rate : 0;
+  if (converged && isFinite(rate) && rate > -1) return rate;
+
+  // Newton-Raphson didn't converge cleanly (known failure mode for irregular
+  // cash-flow patterns, e.g. a large redemption followed by reinvestment) —
+  // fall back to bisection over a wide, sane range instead of silently
+  // returning 0, which would be indistinguishable from a genuine 0% return.
+  // See FolioVeda_Audit_and_Roadmap.md, section 1.8/3.8.
+  let lo = -0.99;
+  let hi = 10; // 1000% annualized — generous upper bound for pathological inputs
+  const npvLo = getNetPresentValue(lo);
+  const npvHi = getNetPresentValue(hi);
+  if (!isFinite(npvLo) || !isFinite(npvHi) || Math.sign(npvLo) === Math.sign(npvHi)) {
+    // No sign change across the bracket — bisection can't find a root either.
+    return null;
+  }
+  for (let i = 0; i < 200; i++) {
+    const mid = (lo + hi) / 2;
+    const npvMid = getNetPresentValue(mid);
+    if (Math.abs(npvMid) < precision) return mid;
+    if (Math.sign(npvMid) === Math.sign(npvLo)) lo = mid; else hi = mid;
+  }
+  return (lo + hi) / 2;
 }
